@@ -106,6 +106,8 @@ void Interpreter::RunTable63(UGeckoInstruction inst)
   m_op_table63[inst.SUBOP10](inst);
 }
 
+static TraceCpuState last_state = { 0 };
+
 void Interpreter::Init()
 {
   char header[6] = { 'X', 'T', 'R', 'C', 0, 20 };
@@ -116,6 +118,7 @@ void Interpreter::Init()
   trace_file = fopen("trace.trc", "wb");
   if(trace_file)
     fwrite(header, sizeof(header), 1, trace_file);
+  memset(&last_state, 0, sizeof(TraceCpuState));
 }
 
 void Interpreter::Shutdown()
@@ -152,20 +155,62 @@ static void Trace(UGeckoInstruction& inst)
   TraceStep step = { 0 };
   if (!trace_file)
     return;
+  int offset = 0;
   step.magic = U32B(MAGIC_STEP);
   step.opcd = U32B(inst.hex);
-  for (int i = 0; i < 32; i++)
-    step.gpr[i] = U32B(GPR(i));
+  u32 regmask = 0;
+  u32 gprmask = 0;
+  u32 fprmask = 0;
+  if (last_state.lr != LR) {
+    last_state.lr = LR;
+    regmask |= TRACE_MASK_LR;
+    step.data[offset++] = U32B(LR);
+  }
+  if (last_state.ctr != CTR) {
+    last_state.ctr = CTR;
+    regmask |= TRACE_MASK_CTR;
+    step.data[offset++] = U32B(CTR);
+  }
+  if (last_state.cr != PowerPC::ppcState.cr.Get()) {
+    u32 cr = PowerPC::ppcState.cr.Get();
+    last_state.cr = cr;
+    regmask |= TRACE_MASK_CR;
+    step.data[offset++] = U32B(cr);
+  }
+  if (last_state.xer != PowerPC::GetXER().Hex) {
+    u32 xer = PowerPC::GetXER().Hex;
+    last_state.xer = xer;
+    regmask |= TRACE_MASK_XER;
+    step.data[offset++] = U32B(xer);
+  }
+  if (last_state.fpscr != FPSCR.Hex) {
+    last_state.fpscr = FPSCR.Hex;
+    regmask |= TRACE_MASK_FPSCR;
+    step.data[offset++] = U32B(FPSCR.Hex);
+  }
+  if (last_state.srr0 != SRR0) {
+    last_state.srr0 = SRR0;
+    regmask |= TRACE_MASK_SRR0;
+    step.data[offset++] = U32B(SRR0);
+  }
+  if (last_state.srr1 != SRR1) {
+    last_state.srr1 = SRR1;
+    regmask |= TRACE_MASK_SRR1;
+    step.data[offset++] = U32B(SRR1);
+  }
+  for (int i = 0; i < 32; i++) {
+    if (last_state.gpr[i] != GPR(i)) {
+      last_state.gpr[i] = GPR(i);
+      step.data[offset++] = U32B(GPR(i));
+      gprmask |= 1 << i;
+    }
+  }
   step.pc = U32B(PC);
-  step.fpscr = U32B(FPSCR.Hex);
-  step.lr = U32B(LR);
-  step.cr = U32B(PowerPC::ppcState.cr.Get());
-  step.xer = U32B(PowerPC::GetXER().Hex);
-  step.ctr = U32B(CTR);
-  step.srr0 = U32B(SRR0);
-  step.srr1 = U32B(SRR1);
   step.step = U64B(stepcnt);
-  fwrite(&step, sizeof(step), 1, trace_file);
+  step.regmask = U32B(regmask);
+  step.gprmask = U32B(gprmask);
+  step.fprmask = U32B(fprmask);
+  fwrite(&step, 32 + offset * 4, 1, trace_file);
   stepcnt++;
 }
 

@@ -15,8 +15,15 @@
 
 extern FILE* trace_file;
 
-struct TraceStep {
-  u32 magic;
+const int TRACE_MASK_LR		= 1 << 0;
+const int TRACE_MASK_CTR	= 1 << 1;
+const int TRACE_MASK_CR		= 1 << 2;
+const int TRACE_MASK_XER	= 1 << 3;
+const int TRACE_MASK_FPSCR	= 1 << 4;
+const int TRACE_MASK_SRR0	= 1 << 5;
+const int TRACE_MASK_SRR1	= 1 << 6;
+
+struct TraceCpuState {
   u32 opcd;
   u32 gpr[32];
   u64 fpr[32];
@@ -28,7 +35,17 @@ struct TraceStep {
   u32 fpscr;
   u32 srr0;
   u32 srr1;
+};
+
+struct TraceStep {
+  u32 magic;
+  u32 opcd;
   u64 step;
+  u32 pc;
+  u32 regmask;
+  u32 gprmask;
+  u32 fprmask;
+  u32 data[3 * 32]; // offset 32
 };
 
 class Interpreter : public CPUCoreBase
