@@ -18,6 +18,31 @@
 #include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/PPCCache.h"
 
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define U16B(x)		(x)
+#define U32B(x)		(x)
+#define U64B(x)		(x)
+#define U16L(x)		__builtin_bswap16(x)
+#define U32L(x)		__builtin_bswap32(x)
+#define U64L(x)		__builtin_bswap64(x)
+#else
+#define U16B(x)		__builtin_bswap16(x)
+#define U32B(x)		__builtin_bswap32(x)
+#define U64B(x)		__builtin_bswap64(x)
+#define U16L(x)		(x)
+#define U32L(x)		(x)
+#define U64L(x)		(x)
+#endif
+
+#define	MAGIC_TRAP	0x54524150
+
+struct TraceException {
+  u32 magic;
+  u32 type;
+  u32 srr0;
+  u32 srr1;
+};
+
 class CPUCoreBase;
 class PointerWrap;
 

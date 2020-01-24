@@ -5,10 +5,31 @@
 #pragma once
 
 #include <array>
+#include <cstdio>
 
 #include "Common/CommonTypes.h"
 #include "Core/PowerPC/CPUCoreBase.h"
 #include "Core/PowerPC/Gekko.h"
+
+#define	MAGIC_STEP	0x53544550
+
+extern FILE* trace_file;
+
+struct TraceStep {
+  u32 magic;
+  u32 opcd;
+  u32 gpr[32];
+  u64 fpr[32];
+  u32 lr;
+  u32 ctr;
+  u32 pc;
+  u32 cr;
+  u32 xer;
+  u32 fpscr;
+  u32 srr0;
+  u32 srr1;
+  u64 step;
+};
 
 class Interpreter : public CPUCoreBase
 {

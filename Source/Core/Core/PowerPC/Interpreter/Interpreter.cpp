@@ -31,12 +31,15 @@
 #include "Core/PowerPC/GDBStub.h"
 #endif
 
+FILE* trace_file = NULL;
+
 namespace
 {
 u32 last_pc;
 }
 
 bool Interpreter::m_end_block;
+u64 stepcnt;
 
 // function tables
 std::array<Interpreter::Instruction, 64> Interpreter::m_op_table;
@@ -105,19 +108,27 @@ void Interpreter::RunTable63(UGeckoInstruction inst)
 
 void Interpreter::Init()
 {
+  char header[6] = { 'X', 'T', 'R', 'C', 0, 20 };
   InitializeInstructionTables();
   m_reserve = false;
   m_end_block = false;
+  stepcnt = 0;
+  trace_file = fopen("trace.trc", "wb");
+  if(trace_file)
+    fwrite(header, sizeof(header), 1, trace_file);
 }
 
 void Interpreter::Shutdown()
 {
+  fclose(trace_file);
+  trace_file = NULL;
 }
 
-static int startTrace = 0;
+static int startTrace = 1;
 
 static void Trace(UGeckoInstruction& inst)
 {
+#if 0
   std::string regs;
   for (size_t i = 0; i < std::size(PowerPC::ppcState.gpr); i++)
   {
@@ -137,6 +148,25 @@ static void Trace(UGeckoInstruction& inst)
             "%08x %s %08x %s",
             PC, SRR0, SRR1, PowerPC::ppcState.cr.fields[0], FPSCR.Hex, MSR.Hex,
             PowerPC::ppcState.spr[8], regs.c_str(), inst.hex, ppc_inst.c_str());
+#endif
+  TraceStep step = { 0 };
+  if (!trace_file)
+    return;
+  step.magic = U32B(MAGIC_STEP);
+  step.opcd = U32B(inst.hex);
+  for (int i = 0; i < 32; i++)
+    step.gpr[i] = U32B(GPR(i));
+  step.pc = U32B(PC);
+  step.fpscr = U32B(FPSCR.Hex);
+  step.lr = U32B(LR);
+  step.cr = U32B(PowerPC::ppcState.cr.Get());
+  step.xer = U32B(PowerPC::GetXER().Hex);
+  step.ctr = U32B(CTR);
+  step.srr0 = U32B(SRR0);
+  step.srr1 = U32B(SRR1);
+  step.step = U64B(stepcnt);
+  fwrite(&step, sizeof(step), 1, trace_file);
+  stepcnt++;
 }
 
 bool Interpreter::HandleFunctionHooking(u32 address)

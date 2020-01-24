@@ -34,6 +34,14 @@
 #include "VideoCommon/CommandProcessor.h"
 #include "VideoCommon/PixelEngine.h"
 
+extern FILE* trace_file;
+
+struct TraceDump {
+  char magic[4];
+  u32 address;
+  u32 size;
+};
+
 namespace Memory
 {
 // =================================
@@ -59,6 +67,18 @@ u8* m_pFakeVMEM;
 
 // MMIO mapping object.
 std::unique_ptr<MMIO::Mapping> mmio_mapping;
+
+static void TraceLoad(u32 address, const void* data, u32 size)
+{
+  TraceDump evt;
+  if(!trace_file)
+    return;
+  memcpy(evt.magic, "DUMP", 4);
+  evt.address = U32B(address);
+  evt.size = U32B(size);
+  fwrite(&evt, sizeof(evt), 1, trace_file);
+  fwrite(data, size, 1, trace_file);
+}
 
 static std::unique_ptr<MMIO::Mapping> InitMMIO()
 {
@@ -412,6 +432,7 @@ void CopyToEmu(u32 address, const void* data, size_t size)
     return;
   }
   memcpy(pointer, data, size);
+  TraceLoad(address, data, size);
 }
 
 void Memset(u32 address, u8 value, size_t size)

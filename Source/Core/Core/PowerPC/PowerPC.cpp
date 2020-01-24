@@ -438,6 +438,18 @@ void UpdatePerformanceMonitor(u32 cycles, u32 num_load_stores, u32 num_fp_inst)
     PowerPC::ppcState.Exceptions |= EXCEPTION_PERFORMANCE_MONITOR;
 }
 
+static void TraceException(int type)
+{
+  struct TraceException exception;
+  if (!trace_file)
+    return;
+  exception.magic = U32B(MAGIC_TRAP);
+  exception.type = U32B(type);
+  exception.srr0 = U32B(SRR0);
+  exception.srr1 = U32B(SRR1);
+  fwrite(&exception, sizeof(exception), 1, trace_file);
+}
+
 void CheckExceptions()
 {
   u32 exceptions = ppcState.Exceptions;
@@ -474,6 +486,7 @@ void CheckExceptions()
 
     DEBUG_LOG(POWERPC, "EXCEPTION_ISI");
     ppcState.Exceptions &= ~EXCEPTION_ISI;
+    TraceException(EXCEPTION_ISI);
   }
   else if (exceptions & EXCEPTION_PROGRAM)
   {
@@ -486,6 +499,7 @@ void CheckExceptions()
 
     DEBUG_LOG(POWERPC, "EXCEPTION_PROGRAM");
     ppcState.Exceptions &= ~EXCEPTION_PROGRAM;
+    TraceException(EXCEPTION_PROGRAM);
   }
   else if (exceptions & EXCEPTION_SYSCALL)
   {
@@ -497,6 +511,7 @@ void CheckExceptions()
 
     DEBUG_LOG(POWERPC, "EXCEPTION_SYSCALL (PC=%08x)", PC);
     ppcState.Exceptions &= ~EXCEPTION_SYSCALL;
+    TraceException(EXCEPTION_SYSCALL);
   }
   else if (exceptions & EXCEPTION_FPU_UNAVAILABLE)
   {
@@ -509,6 +524,7 @@ void CheckExceptions()
 
     DEBUG_LOG(POWERPC, "EXCEPTION_FPU_UNAVAILABLE");
     ppcState.Exceptions &= ~EXCEPTION_FPU_UNAVAILABLE;
+    TraceException(EXCEPTION_FPU_UNAVAILABLE);
   }
   else if (exceptions & EXCEPTION_FAKE_MEMCHECK_HIT)
   {
@@ -525,6 +541,7 @@ void CheckExceptions()
 
     DEBUG_LOG(POWERPC, "EXCEPTION_DSI");
     ppcState.Exceptions &= ~EXCEPTION_DSI;
+    TraceException(EXCEPTION_DSI);
   }
   else if (exceptions & EXCEPTION_ALIGNMENT)
   {
@@ -538,6 +555,7 @@ void CheckExceptions()
 
     DEBUG_LOG(POWERPC, "EXCEPTION_ALIGNMENT");
     ppcState.Exceptions &= ~EXCEPTION_ALIGNMENT;
+    TraceException(EXCEPTION_ALIGNMENT);
   }
 
   // EXTERNAL INTERRUPT
@@ -568,6 +586,7 @@ void CheckExternalExceptions()
       ppcState.Exceptions &= ~EXCEPTION_EXTERNAL_INT;
 
       DEBUG_ASSERT_MSG(POWERPC, (SRR1 & 0x02) != 0, "EXTERNAL_INT unrecoverable???");
+      TraceException(EXCEPTION_EXTERNAL_INT);
     }
     else if (exceptions & EXCEPTION_PERFORMANCE_MONITOR)
     {
@@ -579,6 +598,7 @@ void CheckExternalExceptions()
 
       DEBUG_LOG(POWERPC, "EXCEPTION_PERFORMANCE_MONITOR");
       ppcState.Exceptions &= ~EXCEPTION_PERFORMANCE_MONITOR;
+      TraceException(EXCEPTION_PERFORMANCE_MONITOR);
     }
     else if (exceptions & EXCEPTION_DECREMENTER)
     {
@@ -590,6 +610,7 @@ void CheckExternalExceptions()
 
       DEBUG_LOG(POWERPC, "EXCEPTION_DECREMENTER");
       ppcState.Exceptions &= ~EXCEPTION_DECREMENTER;
+      TraceException(EXCEPTION_DECREMENTER);
     }
     else
     {

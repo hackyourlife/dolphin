@@ -11,8 +11,18 @@
 
 #include "Common/CommonTypes.h"
 
+extern FILE* trace_file;
+
 namespace PowerPC
 {
+
+struct TraceMem {
+  char magic[4];
+  u32  addr;
+  u32  value;
+  u8   size;
+};
+
 // Routines for debugger UI, cheats, etc. to access emulated memory from the
 // perspective of the CPU.  Not for use by core emulation routines.
 // Use "Host_" prefix.

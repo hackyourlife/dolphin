@@ -166,14 +166,31 @@ BatTable dbat_table;
 
 static void GenerateDSIException(u32 effective_address, bool write);
 
+static void TraceMemory(u32 addr, u8 size, u32 value, u8 read)
+{
+  TraceMem evt;
+  if(!trace_file)
+    return;
+  if(read)
+    memcpy(evt.magic, "MEMR", 4);
+  else
+    memcpy(evt.magic, "MEMW", 4);
+  evt.addr = U32B(addr);
+  evt.value = U32B(value);
+  evt.size = size;
+  fwrite(&evt, 13, 1, trace_file);
+}
+
 template <XCheckTLBFlag flag, typename T, bool never_translate = false>
 static T ReadFromHardware(u32 em_address)
 {
+  u32 vaddr = em_address;
   if (!never_translate && MSR.DR)
   {
     auto translated_addr = TranslateAddress<flag>(em_address);
     if (!translated_addr.Success())
     {
+      TraceMemory(vaddr, sizeof(T), 0, true);
       if (flag == XCheckTLBFlag::Read)
         GenerateDSIException(em_address, false);
       return 0;
@@ -188,6 +205,7 @@ static T ReadFromHardware(u32 em_address)
       auto addr_next_page = TranslateAddress<flag>(em_address_next_page);
       if (!addr_next_page.Success())
       {
+        TraceMemory(vaddr, sizeof(T), 0, true);
         if (flag == XCheckTLBFlag::Read)
           GenerateDSIException(em_address_next_page, false);
         return 0;
@@ -214,6 +232,7 @@ static T ReadFromHardware(u32 em_address)
     // TODO: Only the first REALRAM_SIZE is supposed to be backed by actual memory.
     T value;
     std::memcpy(&value, &Memory::m_pRAM[em_address & Memory::RAM_MASK], sizeof(T));
+    TraceMemory(vaddr, sizeof(T), bswap(value), true);
     return bswap(value);
   }
 
@@ -222,6 +241,7 @@ static T ReadFromHardware(u32 em_address)
   {
     T value;
     std::memcpy(&value, &Memory::m_pEXRAM[em_address & 0x0FFFFFFF], sizeof(T));
+    TraceMemory(vaddr, sizeof(T), bswap(value), true);
     return bswap(value);
   }
 
@@ -230,6 +250,7 @@ static T ReadFromHardware(u32 em_address)
   {
     T value;
     std::memcpy(&value, &Memory::m_pL1Cache[em_address & 0x0FFFFFFF], sizeof(T));
+    TraceMemory(vaddr, sizeof(T), bswap(value), true);
     return bswap(value);
   }
   // In Fake-VMEM mode, we need to map the memory somewhere into
@@ -239,15 +260,19 @@ static T ReadFromHardware(u32 em_address)
   {
     T value;
     std::memcpy(&value, &Memory::m_pFakeVMEM[em_address & Memory::RAM_MASK], sizeof(T));
+    TraceMemory(vaddr, sizeof(T), bswap(value), true);
     return bswap(value);
   }
 
   if (flag == XCheckTLBFlag::Read && (em_address & 0xF8000000) == 0x08000000)
   {
+    T result;
     if (em_address < 0x0c000000)
-      return EFB_Read(em_address);
+      result = EFB_Read(em_address);
     else
-      return (T)Memory::mmio_mapping->Read<typename std::make_unsigned<T>::type>(em_address);
+      result = (T)Memory::mmio_mapping->Read<typename std::make_unsigned<T>::type>(em_address);
+    TraceMemory(vaddr, sizeof(T), result, true);
+    return result;
   }
 
   PanicAlert("Unable to resolve read address %x PC %x", em_address, PC);
@@ -257,6 +282,7 @@ static T ReadFromHardware(u32 em_address)
 template <XCheckTLBFlag flag, typename T, bool never_translate = false>
 static void WriteToHardware(u32 em_address, const T data)
 {
+  TraceMemory(em_address, sizeof(T), (u32) data, false);
   if (!never_translate && MSR.DR)
   {
     auto translated_addr = TranslateAddress<flag>(em_address);
