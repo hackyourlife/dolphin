@@ -83,6 +83,8 @@
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
 
+extern int startTrace;
+
 namespace Core
 {
 static bool s_wants_determinism;
@@ -309,6 +311,7 @@ static void CPUSetInitialExecutionState()
     Host_UpdateDisasmDialog();
     Host_UpdateMainFrame();
     Host_Message(HostMessageID::WMUserCreate);
+    startTrace = 1;
   });
 }
 

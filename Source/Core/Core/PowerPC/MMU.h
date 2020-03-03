@@ -12,6 +12,7 @@
 #include "Common/CommonTypes.h"
 
 extern FILE* trace_file;
+extern int startTrace;
 
 namespace PowerPC
 {

@@ -33,6 +33,8 @@
 
 FILE* trace_file = NULL;
 
+int startTrace = 0;
+
 namespace
 {
 u32 last_pc;
@@ -119,6 +121,7 @@ void Interpreter::Init()
   if(trace_file)
     fwrite(header, sizeof(header), 1, trace_file);
   memset(&last_state, 0, sizeof(TraceCpuState));
+  startTrace = 0;
 }
 
 void Interpreter::Shutdown()
@@ -126,8 +129,6 @@ void Interpreter::Shutdown()
   fclose(trace_file);
   trace_file = NULL;
 }
-
-static int startTrace = 1;
 
 static void Trace(UGeckoInstruction& inst)
 {

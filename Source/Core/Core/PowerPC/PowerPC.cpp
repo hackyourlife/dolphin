@@ -443,6 +443,8 @@ static void TraceException(int type)
   struct TraceException exception;
   if (!trace_file)
     return;
+  if (!startTrace)
+    return;
   exception.magic = U32B(MAGIC_TRAP);
   exception.type = U32B(type);
   exception.srr0 = U32B(SRR0);
