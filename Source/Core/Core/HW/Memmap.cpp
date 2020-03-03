@@ -325,6 +325,7 @@ void DoState(PointerWrap& p)
 {
   bool wii = SConfig::GetInstance().bWii;
   p.DoArray(m_pRAM, RAM_SIZE);
+  TraceLoad(0x80000000, m_pRAM, RAM_SIZE);
   p.DoArray(m_pL1Cache, L1_CACHE_SIZE);
   p.DoMarker("Memory RAM");
   if (m_pFakeVMEM)
