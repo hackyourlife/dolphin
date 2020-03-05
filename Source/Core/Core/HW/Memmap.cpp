@@ -331,8 +331,10 @@ void DoState(PointerWrap& p)
   if (m_pFakeVMEM)
     p.DoArray(m_pFakeVMEM, FAKEVMEM_SIZE);
   p.DoMarker("Memory FakeVMEM");
-  if (wii)
+  if (wii) {
     p.DoArray(m_pEXRAM, EXRAM_SIZE);
+    TraceLoad(0x90000000, m_pEXRAM, EXRAM_SIZE);
+  }
   p.DoMarker("Memory EXRAM");
 }
 
